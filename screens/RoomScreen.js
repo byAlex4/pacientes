@@ -203,15 +203,12 @@ const RoomScreen = ({ route }) => {
 
   const handleNewICECandidateMsg = (msg) => {
     console.log("Handling new ICE candidate:", msg);
-
+    if (!pc.current.remoteDescription) {
+      console.log("Remote description not set yet. Candidate will be queued.");
+      // Opcional: Agregar a una cola para procesarlo después
+      return;
+    }
     if (pc.current.remoteDescription) {
-
-      if (!pc.current.remoteDescription) {
-        console.warn("Remote description not set yet. Candidate will be queued.");
-        // Opcional: Agregar a una cola para procesarlo después
-        return;
-      }
-
       try {
         const candidate = new RTCIceCandidate(msg);
         pc.current.addIceCandidate(candidate).catch((error) => {
