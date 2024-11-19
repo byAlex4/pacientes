@@ -175,6 +175,7 @@ const RoomScreen = ({ route }) => {
       .setRemoteDescription(new RTCSessionDescription(offer))
       .then(() => {
         console.log('setRemoteDescription');
+        processCandidateQueue();
         return pc.current.createAnswer();
       })
       .then((answer) => {
@@ -196,35 +197,40 @@ const RoomScreen = ({ route }) => {
     console.log("Handling answer:", answer);
     pc.current
       .setRemoteDescription(new RTCSessionDescription(answer))
+      .then(() => {
+        processCandidateQueue();
+      })
       .catch((error) => {
         console.error("Error setting remote description:", error);
       });
   };
 
+  const candidateQueue = [];
   const handleNewICECandidateMsg = (msg) => {
     if (!pc.current.remoteDescription) {
       console.log("Remote description not set yet. Candidate will be queued.");
-      // Opcional: Agregar a una cola para procesarlo después
+      candidateQueue.push(msg);
       return;
     }
-    if (pc.current.remoteDescription) {
-      try {
-        const candidate = new RTCIceCandidate(msg);
-        console.log("Handling new ICE candidate:", msg);
-        pc.current.addIceCandidate(candidate).catch((error) => {
-          console.error("Error adding received ICE candidate:", error);
-        });
-      } catch (error) {
-        console.error("Invalid ICE candidate received:", error, msg);
-      }
-    } else {
-      console.warn(
-        "Remote description not set yet. Queuing ICE candidate.",
-        msg
-      );
-      // Opcional: Puedes guardar los candidatos en una cola para agregarlos después
+
+    try {
+      const candidate = new RTCIceCandidate(msg);
+      pc.current.addIceCandidate(candidate).catch((error) => {
+        console.error("Error adding received ICE candidate:", error);
+      });
+      console.log("Handling new ICE candidate:", msg);
+    } catch (error) {
+      console.error("Invalid ICE candidate received:", error, msg);
     }
   };
+
+  const processCandidateQueue = () => {
+    while (candidateQueue.length > 0) {
+      const msg = candidateQueue.shift();
+      handleNewICECandidateMsg(msg);
+    }
+  };
+
 
 
 
