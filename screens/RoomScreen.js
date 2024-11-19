@@ -62,7 +62,9 @@ const RoomScreen = ({ route }) => {
         console.log("User media obtained");
         localStream.current = stream;
         setLocalStreamObject(stream);
-        pc.current.addStream(stream); // Aquí usamos addStream
+        stream.getTracks().forEach((track) => {
+          pc.current.addTrack(track, stream);
+        });
         setIsConnected(true);
       })
       .catch((error) => {
@@ -72,12 +74,15 @@ const RoomScreen = ({ route }) => {
 
     // Manejar el track remoto (cuando otro usuario se conecta)
     pc.current.ontrack = (event) => {
-      console.log("Remote track added", event);
+      console.log("Remote track added:", event);
       if (event.streams && event.streams[0]) {
         setRemoteStreamObject(event.streams[0]);
+        console.log("Remote stream object set successfully.");
+      } else {
+        console.warn("No remote streams available.");
       }
-      console.log("Remote stream object:", remoteStreamObject);
     };
+
 
     // Manejo de la señalización cuando un usuario se conecta o desconecta
     socket.current.on("user-connected", (userId) => {
@@ -90,7 +95,10 @@ const RoomScreen = ({ route }) => {
       if (pc.current) {
         pc.current.close();
         pc.current = new RTCPeerConnection({
-          iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+          iceServers: [
+            { urls: "stun:stun.l.google.com:19302" },
+            { urls: "turn:turn.example.com", username: "user", credential: "pass" },
+          ],
         });
         // Reagregar el stream local al nuevo RTCPeerConnection
         if (localStream.current) {
@@ -167,6 +175,7 @@ const RoomScreen = ({ route }) => {
       .catch((error) => {
         console.error("Error handling offer:", error);
       });
+    console.log("Peer connection state:", pc.current.connectionState);
   };
 
   const handleAnswer = (answer) => {
@@ -180,17 +189,28 @@ const RoomScreen = ({ route }) => {
 
   const handleNewICECandidateMsg = (msg) => {
     console.log("Handling new ICE candidate:", msg);
-    const candidate = new RTCIceCandidate(msg);
-    pc.current.addIceCandidate(candidate).catch((error) => {
-      console.error("Error adding received ICE candidate", error);
-    });
+
+    // Validar que el candidato tiene las propiedades necesarias
+    if (msg && msg.candidate && msg.sdpMid !== null && msg.sdpMLineIndex !== null) {
+      const candidate = new RTCIceCandidate(msg);
+      pc.current.addIceCandidate(candidate).catch((error) => {
+        console.error("Error adding received ICE candidate", error);
+      });
+    } else {
+      console.warn("Invalid ICE candidate received:", msg);
+    }
   };
+
 
   // Enviar candidato ICE local al servidor
   pc.current.onicecandidate = (event) => {
     if (event.candidate) {
-      socket.current.emit("ice-candidate", { ...event.candidate, roomId });
-      console.log("ice-candidate", event.candidate);
+      socket.current.emit('ice-candidate', {
+        room: roomId,
+        candidate: event.candidate,
+      });
+    } else {
+      console.log('Todos los candidatos locales han sido enviados');
     }
   };
 
