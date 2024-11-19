@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, Button } from 'react-native';
-import { RTCView, mediaDevices, RTCPeerConnection, RTCIceCandidate, RTCSessionDescription } from 'react-native-webrtc-web-shim';
+import { View, Text, StyleSheet } from 'react-native';
+import { RTCView, mediaDevices, RTCPeerConnection, RTCIceCandidate, RTCSessionDescription } from 'react-native-webrtc';
 import io from 'socket.io-client';
 
 const RoomScreen = ({ route }) => {
@@ -11,7 +11,7 @@ const RoomScreen = ({ route }) => {
     const [remoteStreamObject, setRemoteStreamObject] = useState(null);
     const pc = useRef(new RTCPeerConnection({
         iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun.l.google.com:19302' }
         ],
     }));
     const [isConnected, setIsConnected] = useState(false);
@@ -44,17 +44,20 @@ const RoomScreen = ({ route }) => {
             console.log('User media obtained');
             localStream.current = stream;
             setLocalStreamObject(stream);
-            pc.current.addStream(stream);  // Aquí usamos addStream
+            stream.getTracks().forEach(track => {
+                pc.current.addTrack(track, stream);  // Usamos addTrack en lugar de addStream
+            });
             setIsConnected(true);
         }).catch(error => {
             console.error('Error accessing media devices:', error);
+            alert('Error accessing media devices: ' + error.message);  // Agrega una alerta en caso de error
         });
 
         // Manejar el track remoto (cuando otro usuario se conecta)
-        pc.current.onaddstream = (event) => {  // Usamos onaddstream en lugar de ontrack
-            console.log('Remote stream added');
-            if (event.stream) {
-                setRemoteStreamObject(event.stream); // Guarda el flujo remoto
+        pc.current.ontrack = (event) => {  // Usamos ontrack en lugar de onaddstream
+            console.log('Remote track added');
+            if (event.streams && event.streams[0]) {
+                setRemoteStreamObject(event.streams[0]); // Guarda el flujo remoto
             }
         };
 
@@ -121,9 +124,9 @@ const RoomScreen = ({ route }) => {
             console.log('Answer created:', answer);
             return pc.current.setLocalDescription(answer);
         }).then(() => {
-            console.log('Local description set (handelOffer)');
+            console.log('Local description set (handleOffer)');
             socket.current.emit('answer', pc.current.localDescription);
-            console.log('Offer sent:', pc.current.localDescription);
+            console.log('Answer sent:', pc.current.localDescription);
         }).catch(error => {
             console.error('Error handling offer:', error);
         });
@@ -155,12 +158,11 @@ const RoomScreen = ({ route }) => {
     return (
         <View style={styles.container}>
             {localStreamObject && (
-                <RTCView stream={localStreamObject} style={styles.video} />
+                <RTCView streamURL={localStreamObject.toURL()} style={styles.video} />
             )}
             {remoteStreamObject && (
-                <RTCView stream={remoteStreamObject} style={styles.video} />
+                <RTCView streamURL={remoteStreamObject.toURL()} style={styles.video} />
             )}
-            <Button title="Start Call" onPress={createOffer} disabled={!isConnected} />
         </View>
     );
 };
@@ -172,9 +174,19 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     video: {
-        width: '100%',
-        height: '100%',
+        width: 300,
+        height: 300,
+        margin: 10,
+        backgroundColor: 'black',
     },
+    noVideoContainer: {
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: 100,
+        width: 300,
+        backgroundColor: 'lightgray',
+        margin: 10,
+    }
 });
 
 export default RoomScreen;

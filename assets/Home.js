@@ -5,9 +5,9 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Dimensions } from 'react-native';
 import { AntDesign, Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-web';
-import Login from './Login';
-import Register from './Register';
-import SwiperFlatList from 'react-native-swiper-flatlist';
+import Login from '../screens/Login';
+import Register from '../screens/Register';
+//import SwiperFlatList from 'react-native-swiper-flatlist';
 
 const { windowHeight, windowWidth } = Dimensions.get('window');
 export default function Home() {

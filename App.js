@@ -3,12 +3,11 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-web';
 
 //Screens
 import Login from './screens/Login';
 import Register from './screens/Register';
-import Home from './screens/Home';
+//import Home from './assets/Home';
 import CallButtonScreen from './screens/CallButtonScreen';
 import RoomScreen from './screens/RoomScreen';
 
@@ -24,7 +23,7 @@ export default function App() {
   }, []);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       {isLoading == true ?
         <View style={styles.containerNav}>
           <NavigationContainer style={styles.container}>
@@ -35,7 +34,6 @@ export default function App() {
                   headerTransparent: true,
                   headerTintColor: '#ffff'
                 }} />
-              <Stack.Screen name='Home' component={Home} options={{ headerShown: false }} />
               <Stack.Screen name='Call' component={CallButtonScreen} options={{ headerShown: false }} />
               <Stack.Screen name='Room' component={RoomScreen} />
             </Stack.Navigator>
@@ -48,7 +46,7 @@ export default function App() {
         </View>
       }
       <StatusBar style="auto" />
-    </SafeAreaView>
+    </View>
   );
 }
 

@@ -21,8 +21,16 @@
       },
       "package": "com.soyalexd.pacientes"
     },
+    "plugins": [
+      "@config-plugins/react-native-webrtc"
+    ],
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "58cf06b1-99c3-4153-a6a1-bfc5752c3b55"
+      }
     }
   }
 }
