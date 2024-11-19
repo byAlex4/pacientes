@@ -216,7 +216,7 @@ const RoomScreen = ({ route }) => {
 
   return (
     <View style={styles.container}>
-      {localStreamObject && (
+      {isConnected && (
         <RTCView stream={localStreamObject} style={styles.video} />
       )}
       {remoteStreamObject ? (
