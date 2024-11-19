@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, Button } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import {
   RTCView,
   mediaDevices,
@@ -7,7 +7,7 @@ import {
   RTCIceCandidate,
   RTCSessionDescription,
 } from "react-native-webrtc-web-shim";
-import io from "socket.io-client";
+import { io } from "socket.io-client";
 
 const RoomScreen = ({ route }) => {
   const { roomId } = route.params;
@@ -25,7 +25,10 @@ const RoomScreen = ({ route }) => {
   useEffect(() => {
     // Conectar a Socket.IO
     console.log("Connecting to socket...");
-    socket.current = io("wss://mighty-oasis-96312-f0778e903b79.herokuapp.com");
+    socket.current = io("https://mighty-oasis-96312-f0778e903b79.herokuapp.com", {
+      //transports: ['websocket', 'polling'], // Asegúrate de soportar ambos transportes
+      timeout: 10000, // Ajusta el tiempo de espera a 10 segundos
+    });
 
     socket.current.on("connect", () => {
       console.log("Connected to socket server");
@@ -34,7 +37,14 @@ const RoomScreen = ({ route }) => {
     });
 
     socket.current.on("connect_error", (error) => {
-      console.error("Connection error:", error);
+      // the reason of the error, for example "xhr poll error"
+      console.log(err.message);
+
+      // some additional description, for example the status code of the initial HTTP response
+      console.log(err.description);
+
+      // some additional context, for example the XMLHttpRequest object
+      console.log(err.context);
     });
 
     socket.current.on("disconnect", () => {
@@ -57,7 +67,7 @@ const RoomScreen = ({ route }) => {
       })
       .catch((error) => {
         console.error("Error accessing media devices:", error);
-        alert("Error accessing media devices: " + error.message); // Agrega una alerta en caso de error
+        alert("Error accessing media devices: " + error.message);
       });
 
     // Manejar el track remoto (cuando otro usuario se conecta)
@@ -82,16 +92,27 @@ const RoomScreen = ({ route }) => {
         pc.current = new RTCPeerConnection({
           iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
         });
+        // Reagregar el stream local al nuevo RTCPeerConnection
+        if (localStream.current) {
+          pc.current.addStream(localStream.current);
+        }
       }
     });
 
     socket.current.on("offer", (offer) => {
       console.log("Received offer:", offer);
-      handleOffer(offer); // Procesa la oferta y responde
+      handleOffer(offer);
     });
 
-    socket.current.on("answer", handleAnswer);
-    socket.current.on("ice-candidate", handleNewICECandidateMsg);
+    socket.current.on("answer", (answer) => {
+      console.log("Received answer:", answer);
+      handleAnswer(answer);
+    });
+
+    socket.current.on("ice-candidate", (candidate) => {
+      console.log("Received ICE candidate:", candidate);
+      handleNewICECandidateMsg(candidate);
+    });
 
     // Cleanup cuando el componente se desmonta
     return () => {
@@ -131,6 +152,7 @@ const RoomScreen = ({ route }) => {
     pc.current
       .setRemoteDescription(new RTCSessionDescription(offer))
       .then(() => {
+        console.log('setRemoteDescription');
         return pc.current.createAnswer();
       })
       .then((answer) => {
@@ -138,9 +160,9 @@ const RoomScreen = ({ route }) => {
         return pc.current.setLocalDescription(answer);
       })
       .then(() => {
-        console.log("Local description set (handelOffer)");
+        console.log("Local description set (handleOffer)");
         socket.current.emit("answer", pc.current.localDescription);
-        console.log("Offer sent:", pc.current.localDescription);
+        console.log("Answer sent:", pc.current.localDescription);
       })
       .catch((error) => {
         console.error("Error handling offer:", error);
@@ -167,7 +189,7 @@ const RoomScreen = ({ route }) => {
   // Enviar candidato ICE local al servidor
   pc.current.onicecandidate = (event) => {
     if (event.candidate) {
-      socket.current.emit("ice-candidate", event.candidate);
+      socket.current.emit("ice-candidate", { ...event.candidate, roomId });
       console.log("ice-candidate", event.candidate);
     }
   };
@@ -177,17 +199,17 @@ const RoomScreen = ({ route }) => {
       {localStreamObject && (
         <RTCView stream={localStreamObject} style={styles.video} />
       )}
-      {remoteStreamObject && (
-        <RTCView stream={remoteStreamObject} style={styles.video} />
+      {remoteStreamObject ? (
+        remoteStreamObject && (
+          <RTCView stream={remoteStreamObject} style={styles.video} />
+        )
+      ) : (
+        <Text style={styles.message}>No hay usuarios conectados</Text>
       )}
-      <Button
-        title="Start Call"
-        onPress={createOffer}
-        disabled={!isConnected}
-      />
     </View>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {
@@ -201,13 +223,9 @@ const styles = StyleSheet.create({
     margin: 10,
     backgroundColor: "black",
   },
-  noVideoContainer: {
-    justifyContent: "center",
-    alignItems: "center",
-    height: 100,
-    width: 300,
-    backgroundColor: "lightgray",
-    margin: 10,
+  message: {
+    fontSize: 18,
+    color: "gray",
   },
 });
 
