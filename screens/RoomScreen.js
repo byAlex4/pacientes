@@ -54,23 +54,27 @@ const RoomScreen = ({ route }) => {
     // Obtener el stream local (audio y video)
     console.log("Requesting user media...");
     mediaDevices
-      .getUserMedia({
-        audio: true,
-        video: true,
-      })
+      .getUserMedia({ audio: true, video: true })
       .then((stream) => {
         console.log("User media obtained");
         localStream.current = stream;
+
+        // Muestra el video local en la UI
         setLocalStreamObject(stream);
+
+        // Asegúrate de añadir el flujo al RTCPeerConnection
         stream.getTracks().forEach((track) => {
           pc.current.addTrack(track, stream);
         });
+
         setIsConnected(true);
       })
       .catch((error) => {
         console.error("Error accessing media devices:", error);
         alert("Error accessing media devices: " + error.message);
       });
+
+
 
     // Manejar el track remoto (cuando otro usuario se conecta)
     pc.current.ontrack = (event) => {
@@ -121,6 +125,16 @@ const RoomScreen = ({ route }) => {
       console.log("Received ICE candidate:", candidate);
       handleNewICECandidateMsg(candidate);
     });
+
+    pc.current.oniceconnectionstatechange = () => {
+      console.log("ICE connection state:", pc.current.iceConnectionState);
+
+      if (pc.current.iceConnectionState === "failed") {
+        console.error("ICE connection failed. Retrying...");
+        // Opcional: Implementar reinicio de ICE aquí
+      }
+    };
+
 
     // Cleanup cuando el componente se desmonta
     return () => {
@@ -190,16 +204,24 @@ const RoomScreen = ({ route }) => {
   const handleNewICECandidateMsg = (msg) => {
     console.log("Handling new ICE candidate:", msg);
 
-    // Validar que el candidato tiene las propiedades necesarias
-    if (msg && msg.candidate && msg.sdpMid !== null && msg.sdpMLineIndex !== null) {
-      const candidate = new RTCIceCandidate(msg);
-      pc.current.addIceCandidate(candidate).catch((error) => {
-        console.error("Error adding received ICE candidate", error);
-      });
+    if (pc.current.remoteDescription) {
+      try {
+        const candidate = new RTCIceCandidate(msg);
+        pc.current.addIceCandidate(candidate).catch((error) => {
+          console.error("Error adding received ICE candidate:", error);
+        });
+      } catch (error) {
+        console.error("Invalid ICE candidate received:", error, msg);
+      }
     } else {
-      console.warn("Invalid ICE candidate received:", msg);
+      console.warn(
+        "Remote description not set yet. Queuing ICE candidate.",
+        msg
+      );
+      // Opcional: Puedes guardar los candidatos en una cola para agregarlos después
     }
   };
+
 
 
   // Enviar candidato ICE local al servidor
