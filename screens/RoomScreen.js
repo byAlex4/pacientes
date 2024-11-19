@@ -36,7 +36,7 @@ const RoomScreen = ({ route }) => {
       console.log("Room:", roomId, "UserID:", socket.current.id);
     });
 
-    socket.current.on("connect_error", (error) => {
+    socket.current.on("connect_error", (err) => {
       // the reason of the error, for example "xhr poll error"
       console.log(err.message);
 
@@ -205,6 +205,13 @@ const RoomScreen = ({ route }) => {
     console.log("Handling new ICE candidate:", msg);
 
     if (pc.current.remoteDescription) {
+
+      if (!pc.current.remoteDescription) {
+        console.warn("Remote description not set yet. Candidate will be queued.");
+        // Opcional: Agregar a una cola para procesarlo después
+        return;
+      }
+
       try {
         const candidate = new RTCIceCandidate(msg);
         pc.current.addIceCandidate(candidate).catch((error) => {
