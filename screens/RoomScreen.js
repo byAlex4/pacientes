@@ -25,10 +25,13 @@ const RoomScreen = ({ route }) => {
   useEffect(() => {
     // Conectar a Socket.IO
     console.log("Connecting to socket...");
-    socket.current = io("https://mighty-oasis-96312-f0778e903b79.herokuapp.com", {
-      //transports: ['websocket', 'polling'], // Asegúrate de soportar ambos transportes
-      timeout: 10000, // Ajusta el tiempo de espera a 10 segundos
-    });
+    socket.current = io(
+      "https://mighty-oasis-96312-f0778e903b79.herokuapp.com",
+      {
+        //transports: ['websocket', 'polling'], // Asegúrate de soportar ambos transportes
+        timeout: 10000, // Ajusta el tiempo de espera a 10 segundos
+      }
+    );
 
     socket.current.on("connect", () => {
       console.log("Connected to socket server");
@@ -74,8 +77,6 @@ const RoomScreen = ({ route }) => {
         alert("Error accessing media devices: " + error.message);
       });
 
-
-
     // Manejar el track remoto (cuando otro usuario se conecta)
     pc.current.ontrack = (event) => {
       console.log("Remote track added:", event);
@@ -86,7 +87,6 @@ const RoomScreen = ({ route }) => {
         console.warn("No remote streams available.");
       }
     };
-
 
     // Manejo de la señalización cuando un usuario se conecta o desconecta
     socket.current.on("user-connected", (userId) => {
@@ -101,9 +101,7 @@ const RoomScreen = ({ route }) => {
       if (pc.current) {
         pc.current.close();
         pc.current = new RTCPeerConnection({
-          iceServers: [
-            { urls: "stun:stun.l.google.com:19302" }
-          ],
+          iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
         });
         // Reagregar el stream local al nuevo RTCPeerConnection
         if (localStream.current) {
@@ -135,7 +133,6 @@ const RoomScreen = ({ route }) => {
         // Opcional: Implementar reinicio de ICE aquí
       }
     };
-
 
     // Cleanup cuando el componente se desmonta
     return () => {
@@ -175,7 +172,7 @@ const RoomScreen = ({ route }) => {
     pc.current
       .setRemoteDescription(new RTCSessionDescription(offer))
       .then(() => {
-        console.log('setRemoteDescription');
+        console.log("setRemoteDescription");
         processCandidateQueue();
         return pc.current.createAnswer();
       })
@@ -216,7 +213,10 @@ const RoomScreen = ({ route }) => {
 
     // Verificar que sdpMid y sdpMLineIndex no sean nulos
     if (!msg.candidate || msg.sdpMid === null || msg.sdpMLineIndex === null) {
-      console.error("Invalid ICE candidate: missing sdpMid or sdpMLineIndex", msg);
+      console.error(
+        "Invalid ICE candidate: missing sdpMid or sdpMLineIndex",
+        msg
+      );
       return; // Salir si el mensaje es inválido
     }
 
@@ -224,8 +224,11 @@ const RoomScreen = ({ route }) => {
 
     try {
       const candidate = new RTCIceCandidate(msg.candidate);
-      pc.current.addIceCandidate(candidate)
-        .then(() => console.log("ICE candidate added successfully:", msg.candidate))
+      pc.current
+        .addIceCandidate(candidate)
+        .then(() =>
+          console.log("ICE candidate added successfully:", msg.candidate)
+        )
         .catch((error) => {
           console.error("Error adding received ICE candidate:", error);
         });
@@ -242,30 +245,25 @@ const RoomScreen = ({ route }) => {
     }
   };
 
-
-
-
   // Enviar candidato ICE local al servidor
   pc.current.onicecandidate = (event) => {
     if (event.candidate) {
-      socket.current.emit('ice-candidate', {
+      socket.current.emit("ice-candidate", {
         room: roomId,
         candidate: event.candidate,
       });
     } else {
-      console.log('Todos los candidatos locales han sido enviados');
+      console.log("Todos los candidatos locales han sido enviados");
     }
   };
 
   return (
     <View style={styles.container}>
       {isConnected && (
-        <RTCView stream={localStreamObject} style={styles.video} />
+        <RTCView stream={localStreamObject} style={styles.localVideo} />
       )}
       {remoteStreamObject ? (
-        remoteStreamObject && (
-          <RTCView stream={remoteStreamObject} style={styles.video} />
-        )
+        <RTCView stream={remoteStreamObject} style={styles.remoteVideo} />
       ) : (
         <Text style={styles.message}>No hay usuarios conectados</Text>
       )}
@@ -273,22 +271,47 @@ const RoomScreen = ({ route }) => {
   );
 };
 
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#282c34", // Fondo oscuro
   },
-  video: {
-    width: 300,
-    height: 300,
+  localVideo: {
+    width: 250,
+    height: 200,
     margin: 10,
+    borderColor: "#3b5998", // Borde azul
+    borderWidth: 2,
+    borderRadius: 10,
     backgroundColor: "black",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.8,
+    shadowRadius: 2,
+    elevation: 5,
+  },
+  remoteVideo: {
+    width: 250,
+    height: 200,
+    margin: 10,
+    borderColor: "#fff", // Borde blanco
+    borderWidth: 2,
+    borderRadius: 10,
+    backgroundColor: "black",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.8,
+    shadowRadius: 2,
+    elevation: 5,
   },
   message: {
     fontSize: 18,
-    color: "gray",
+    color: "#ccc", // Color gris claro
+    margin: 20,
+    textAlign: "center",
+    fontStyle: "italic",
   },
 });
 
