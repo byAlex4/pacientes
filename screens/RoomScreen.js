@@ -96,12 +96,13 @@ const RoomScreen = ({ route }) => {
 
     socket.current.on("user-disconnected", (userId) => {
       console.log("User disconnected:", userId);
+      setRemoteStream(null);
+      setIsConnected(false);
       if (pc.current) {
         pc.current.close();
         pc.current = new RTCPeerConnection({
           iceServers: [
-            { urls: "stun:stun.l.google.com:19302" },
-            { urls: "turn:turn.example.com", username: "user", credential: "pass" },
+            { urls: "stun:stun.l.google.com:19302" }
           ],
         });
         // Reagregar el stream local al nuevo RTCPeerConnection
@@ -213,14 +214,24 @@ const RoomScreen = ({ route }) => {
       return;
     }
 
+    // Verificar que sdpMid y sdpMLineIndex no sean nulos
+    if (!msg.candidate || msg.sdpMid === null || msg.sdpMLineIndex === null) {
+      console.error("Invalid ICE candidate: missing sdpMid or sdpMLineIndex", msg);
+      return; // Salir si el mensaje es inválido
+    }
+
+    console.log("Received ICE candidate:", msg);
+
     try {
-      const candidate = new RTCIceCandidate(msg);
-      pc.current.addIceCandidate(candidate).catch((error) => {
-        console.error("Error adding received ICE candidate:", error);
-      });
+      const candidate = new RTCIceCandidate(msg.candidate);
+      pc.current.addIceCandidate(candidate)
+        .then(() => console.log("ICE candidate added successfully:", msg.candidate))
+        .catch((error) => {
+          console.error("Error adding received ICE candidate:", error);
+        });
       console.log("Handling new ICE candidate:", msg);
     } catch (error) {
-      console.error("Invalid ICE candidate received:", error, msg);
+      console.error("Invalid ICE candidate received:", error, msg.candidate);
     }
   };
 
